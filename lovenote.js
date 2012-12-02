@@ -1,6 +1,6 @@
-var width = 500, height = 200, stream_length = 1024;
+var width = 800, height = 400, stream_length = 1024;
 
-var svg = d3.select(document.body).append('svg')
+var svg = d3.select('#music').append('svg')
     .attr('width', width)
     .attr('height', height);
 
@@ -52,17 +52,21 @@ d3.select('#on').on('change', function() {
     on = this.checked;
 });
 
-var board = d3.range(0, 50).reduce(function(mem, time) {
-    return mem.concat(d3.range(0, 20).map(function(note) {
-        return {
-            time: time,
-            note: note,
-            on: false
-        };
-    }));
-}, []);
+function makeBoard() {
+    return d3.range(0, 50).reduce(function(mem, time) {
+        return mem.concat(d3.range(0, 25).map(function(note) {
+            return {
+                time: time,
+                note: note,
+                on: false
+            };
+        }));
+    }, []);
+}
 
-var scale_note = d3.scale.linear().domain([0, 20]).range([height, 0]);
+var board = makeBoard();
+
+var scale_note = d3.scale.linear().domain([0, 25]).range([height, 0]);
 var scale_time = d3.scale.linear().domain([0, 50]).range([0, width]);
 
 var notes = svg.selectAll('g.note')
@@ -79,11 +83,17 @@ var notes = svg.selectAll('g.note')
     });
 
 notes.append('rect')
-    .attr({ width: 9, height: 9 });
+    .attr({ width: 15, height: 15 });
 
 notes.on('click', function(d) {
     d.on = !d.on;
     d3.select(this).select('rect').classed('on', d.on);
+    hashset();
+}).on('mouseover', function(d) {
+    if (!d3.event.which) return;
+    d.on = !d.on;
+    d3.select(this).select('rect').classed('on', d.on);
+    hashset();
 });
 
 function setbar(_) {
@@ -102,7 +112,28 @@ d3.select('#bar')
     .text(String)
     .attr('value', String);
 
+d3.select('#reset').on('click', function() {
+    board = makeBoard();
+    notes.select('rect').classed('on', false);
+    hashset();
+});
+
 setbar(4);
+
+function encode() {
+    return board.map(function(d) {
+        return d.on ? String.fromCharCode(97 + d.note) : '_';
+    }).join('');
+}
+
+var hashseti;
+function hashset() {
+    if (hashseti !== null) window.clearTimeout(hashseti);
+    hashseti = window.setTimeout(function() {
+        window.location.hash = encode();
+        hashseti = null;
+    }, 500);
+}
 
 var pos = 0;
 window.setInterval(function() {
