@@ -6,13 +6,11 @@
 <body>
 <div class='wrap'>
     <h1><i class='icon-heart'></i> lovenote <small>send a tune</small></h1>
-    <input type='checkbox' id='on' />
+    <button id='play-pause'><i class='icon-pause'></i></button>
     <label for='on'>play</label>
     <select id='bar'></select>
     <input type='text' id='bpm' value='300' size=3 />
-    <button id='bpm-up'><i class='icon-arrow-up'></i></button>
-    <button id='bpm-down'><i class='icon-arrow-down'></i></button>
-    <button id='reset'><i class='icon-trash'></i> reset</button>
+    <button id='bpm-up'><i class='icon-arrow-up'></i></button><button id='bpm-down'><i class='icon-arrow-down'></i></button><button id='reset'><i class='icon-trash'></i></button>
     <div id='music'></div>
 </div>
 <script src="d3.v3.min.js"></script>

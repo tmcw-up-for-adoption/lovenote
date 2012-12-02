@@ -181,6 +181,16 @@ d3.select('#bpm-down').on('click', function() {
     updateBpm();
 });
 
+var playing = true;
+d3.select('#play-pause').on('click', function() {
+    playing = !playing;
+    d3.select(this).select('i')
+        .attr('class', function() {
+            return playing ? 'icon-pause' : 'icon-play';
+        });
+    if (playing) step();
+});
+
 // iterate through notes
 var pos = 0;
 function step() {
@@ -196,7 +206,7 @@ function step() {
         freq = note.map(function(n) { return n.note; });
     }
     if (pos++ > 50) pos = 0;
-    window.setTimeout(step, (60 * 1000) / bpm);
+    if (playing) window.setTimeout(step, (60 * 1000) / bpm);
 }
 step();
 

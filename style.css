@@ -28,3 +28,22 @@ g.note.isbar rect {
 .icon-heart {
     color:#E0518A;
 }
+button {
+    border:0;
+    cursor:pointer;
+    font-size:15px;
+    width:30px;
+    height:30px;
+    font-weight:normal;
+    color:#e0518a;
+    background:#fff;
+}
+button:hover {
+    color:#000;
+}
+input[type=text] {
+    border:0;
+    background:#eee;
+    font:normal 12px/20px 'Georgia';
+    padding:0 5px;
+}
