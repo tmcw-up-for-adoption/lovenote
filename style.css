@@ -1,0 +1,30 @@
+body {
+    font:normal 12px/20px 'Georgia';
+    color:#222;
+    margin:0;
+    border-top:2px solid #E0518A;
+}
+.wrap {
+    width:800px;
+    margin:50px auto;
+}
+h1 small {
+    font-weight:normal;
+    font-size:12px;
+}
+g.note rect {
+    fill:#ccc;
+}
+g.note.playing rect {
+    fill:#aaa;
+}
+g.note rect.on {
+    fill:#E0518A;
+}
+g.note.isbar rect {
+    stroke-width:1;
+    stroke:#eee;
+}
+.icon-heart {
+    color:#E0518A;
+}

@@ -2,38 +2,7 @@
 <meta charset="utf-8">
 <title>lovenote</title>
 <link href='font/font-awesome.css' rel='stylesheet' />
-<style>
-    body {
-        font:normal 12px/20px 'Georgia';
-        color:#222;
-        margin:0;
-        border-top:2px solid #E0518A;
-    }
-    .wrap {
-        width:800px;
-        margin:50px auto;
-    }
-    h1 small {
-        font-weight:normal;
-        font-size:12px;
-    }
-    g.note rect {
-        fill:#ccc;
-    }
-    g.note.playing rect {
-        fill:#aaa;
-    }
-    g.note rect.on {
-        fill:#E0518A;
-    }
-    g.note.isbar rect {
-        stroke-width:1;
-        stroke:#eee;
-    }
-    .icon-heart {
-        color:#E0518A;
-    }
-</style>
+<link href='style.css' rel='stylesheet' />
 <body>
 <div class='wrap'>
     <h1><i class='icon-heart'></i> lovenote <small>send a tune</small></h1>
@@ -43,6 +12,6 @@
     <button id='reset'><i class='icon-trash'></i> reset</button>
     <div id='music'></div>
 </div>
-
 <script src="d3.v3.min.js"></script>
 <script src='lovenote.js'></script>
+</body>
