@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 <title>lovenote</title>
+<link href='font/font-awesome.css' rel='stylesheet' />
 <style>
     body {
         font:normal 12px/20px 'Georgia';
@@ -29,14 +30,17 @@
         stroke-width:1;
         stroke:#eee;
     }
+    .icon-heart {
+        color:#E0518A;
+    }
 </style>
 <body>
 <div class='wrap'>
-    <h1>lovenote <small>send a tune</small></h1>
+    <h1><i class='icon-heart'></i> lovenote <small>send a tune</small></h1>
     <input type='checkbox' id='on' />
     <label for='on'>play</label>
     <select id='bar'></select>
-    <button id='reset'>reset</button>
+    <button id='reset'><i class='icon-trash'></i> reset</button>
     <div id='music'></div>
 </div>
 
