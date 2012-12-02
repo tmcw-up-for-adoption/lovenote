@@ -4,9 +4,9 @@ var svg = d3.select('#music').append('svg')
     .attr('width', width)
     .attr('height', height);
 
-var ctx = new webkitAudioContext();
-var node = ctx.createJavaScriptNode(stream_length, 1, 2);
-var volume = ctx.createGainNode();
+var ctx = new webkitAudioContext(),
+    node = ctx.createJavaScriptNode(stream_length, 1, 2),
+    volume = ctx.createGainNode();
 volume.gain.value = 0.01;
 node.connect(volume);
 volume.connect(ctx.destination);
@@ -66,8 +66,12 @@ function makeBoard() {
 
 var board = makeBoard();
 
-var scale_note = d3.scale.linear().domain([0, 25]).range([height, 0]);
-var scale_time = d3.scale.linear().domain([0, 50]).range([0, width]);
+var scale_note = d3.scale.linear()
+        .domain([0, 25])
+        .range([height, 0]),
+    scale_time = d3.scale.linear()
+        .domain([0, 50])
+        .range([0, width]);
 
 var notes = svg.selectAll('g.note')
     .data(board)
@@ -108,9 +112,10 @@ d3.select('#bar')
     })
     .selectAll('option')
     .data(d3.range(2, 9))
-    .enter().append('option')
-    .text(String)
-    .attr('value', String);
+    .enter()
+        .append('option')
+        .text(String)
+        .attr('value', String);
 
 d3.select('#reset').on('click', function() {
     board = makeBoard();
@@ -150,5 +155,3 @@ window.setInterval(function() {
     }
     if (pos++ > 50) pos = 0;
 }, 200);
-
-
