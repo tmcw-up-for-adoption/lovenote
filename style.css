@@ -4,15 +4,21 @@ body {
     margin:0;
     border-top:2px solid #E0518A;
 }
+
 .wrap {
     width:800px;
     margin:50px auto;
 }
-h1 small {
+
+h1 {
     font-weight:normal;
+}
+h1 small {
     font-size:12px;
 }
+
 g.note rect {
+    cursor:pointer;
     fill:#ccc;
 }
 g.note.playing rect {
@@ -25,9 +31,34 @@ g.note.isbar rect {
     stroke-width:1;
     stroke:#eee;
 }
+
+g.note text {
+    font-family:'Helvetica Neue';
+    font-size:10px;
+    fill:#aaa;
+    display:none;
+    pointer-events:none;
+}
+g.note:hover text {
+    display:block;
+}
+
+g.timeline rect {
+    fill:#eee;
+}
+
+rect.sep {
+    fill:#aaaaaa;
+}
+
+g.cue rect {
+  fill:#888;
+}
+
 .icon-heart {
     color:#E0518A;
 }
+
 button {
     border:0;
     cursor:pointer;

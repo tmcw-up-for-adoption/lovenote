@@ -6,3 +6,4 @@ Uses [d3js](http://d3js.org/) and the web audio api
 ## Synths and abstractions
 
 * https://github.com/mattdiamond/synthjs
+* https://github.com/aike/webaudiosynth
