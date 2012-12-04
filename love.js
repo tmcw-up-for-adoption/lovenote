@@ -175,6 +175,17 @@ d3.select('#bpm-down').on('click', function() {
     updateBpm();
 });
 
+function pause() {
+    note.freq([]);
+    if (stepi) window.clearTimeout(stepi);
+    stepi = null;
+}
+
+function play() {
+    if (stepi !== null) return;
+    step();
+}
+
 var playing = true;
 d3.select('#play-pause').on('click', function() {
     playing = !playing;
@@ -185,10 +196,11 @@ d3.select('#play-pause').on('click', function() {
     if (playing) {
         step();
     } else {
-        note.freq([]);
-        window.clearTimeout(stepi);
+        pause();
     }
 });
+
+visibility().on('hide', pause).on('show', play);
 
 // iterate through notes
 var pos = 0, stepi;
