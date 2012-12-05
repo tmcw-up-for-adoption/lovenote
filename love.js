@@ -92,12 +92,19 @@ blocks.append('text')
     });
 
 blocks.on('click', function(d) {
+    board.map(function(b) {
+        if (b.time === d.time) b.on = false;
+    });
     d.on = !d.on;
-    d3.select(this).select('rect').classed('on', d.on);
+    blocks.select('rect').classed('on', function(d) { return d.on; });
 }).on('mouseover', function(d) {
     if (!d3.event.which) return;
-    d.on = !d.on;
-    d3.select(this).select('rect').classed('on', d.on);
+    var on = !d.on;
+    board.map(function(b) {
+        if (b.time === d.time) b.on = false;
+    });
+    d.on = on;
+    blocks.select('rect').classed('on', function(d) { return d.on; });
 });
 
 var timeline = svg.selectAll('g.timeline')
@@ -246,7 +253,6 @@ function noteFreq(tone, octave) {
 }
 
 var tonegenerator = sinetone();
-// iterate through notes
 var pos = 0, stepi;
 pico.play(tonegenerator);
 function step() {
