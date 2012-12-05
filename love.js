@@ -4,8 +4,7 @@ var width = 800,
     note = 5,
     lowest = 19,
     tones = 15,
-    highest = lowest + tones,
-    note = lovenote.note();
+    highest = lowest + tones;
 
 var svg = d3.select('#music')
     .append('svg')
@@ -176,7 +175,7 @@ d3.select('#bpm-down').on('click', function() {
 });
 
 function pause() {
-    note.freq([]);
+    tonegenerator.freq(-1);
     if (stepi) window.clearTimeout(stepi);
     stepi = null;
 }
@@ -202,8 +201,54 @@ d3.select('#play-pause').on('click', function() {
 
 visibility().on('hide', pause).on('show', play);
 
+function sinetone(_) {
+    var s = {},
+        phase = 0,
+        freq,
+        phaseStep;
+
+    s.freq = function(_) {
+        freq = _;
+        phaseStep = freq / pico.samplerate;
+        return s;
+    };
+
+    s.process = function(L, R) {
+        var i;
+        if (phaseStep < 0) {
+            phase = 0;
+            for (i = 0; i < L.length; i++) {
+                L[i] = R[i] = 0;
+            }
+        } else {
+            for (i = 0; i < L.length; i++) {
+                L[i] = R[i] = Math.sin(6.28318 * phase) * 0.25;
+                phase += phaseStep;
+            }
+        }
+    };
+
+    return s.freq(_);
+}
+
+var tones = {
+    c: 0,
+    d: 2,
+    e: 4,
+    f: 5,
+    g: 7,
+    a: 9,
+    b: 11
+};
+
+function noteFreq(tone, octave) {
+    return 440 * Math.pow(Math.pow(2, 1 / 12), tone + (octave || 3) * 12 - 69);
+}
+
+var tonegenerator = sinetone();
 // iterate through notes
 var pos = 0, stepi;
+pico.play(tonegenerator);
 function step() {
     var notes = board.filter(function(d) {
         return d.time == pos && d.on;
@@ -211,10 +256,12 @@ function step() {
     blocks.classed('playing', function(d) {
         return d.time == pos;
     });
-    if (!notes.length) on = false;
-    else {
+    if (!notes.length) {
+        on = false;
+        tonegenerator.freq(-1);
+    } else {
         on = true;
-        note.freq(notes.map(function(n) { return n.note; }));
+        tonegenerator.freq(noteFreq(notes[0].note));
     }
     if (++pos > loop[1]) pos = loop[0];
     if (playing) {
