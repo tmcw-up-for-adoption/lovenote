@@ -1,9 +1,10 @@
-var width = 800,
-    height = 500,
+var width = 1000,
+    height = 600,
     on = false,
     note = 5,
-    lowest = 19,
-    tones = 15,
+    // C
+    lowest = 24,
+    tones = 24,
     highest = lowest + tones;
 
 var svg = d3.select('#music')
@@ -14,8 +15,10 @@ d3.select('#on').on('change', function() {
     on = this.checked;
 });
 
+var beats = 40;
+
 function makeBoard() {
-    return d3.range(0, 50).reduce(function(mem, time) {
+    return d3.range(0, beats).reduce(function(mem, time) {
         return mem.concat(d3.range(lowest, highest).map(function(note) {
             return {
                 time: time,
@@ -34,7 +37,7 @@ function drawbars(data) {
         .attr('fill', '#e0518a')
         .append('rect')
         .attr('width', 1)
-        .attr('height', tones * 16);
+        .attr('height', height);
     bars
         .transition()
         .attr('transform', function(d) {
@@ -44,7 +47,7 @@ function drawbars(data) {
 }
 
 function setbar(_) {
-    drawbars(d3.range(0, 50, _));
+    drawbars(d3.range(0, beats, _));
 }
 
 function updateBpm() {
@@ -54,10 +57,10 @@ function updateBpm() {
 var board = makeBoard();
 
 var scale_note = d3.scale.linear()
-        .domain([lowest, highest - 1])
-        .range([tones * 15, 0]),
+        .domain([lowest - 2, highest - 1])
+        .range([height, 0]),
     scale_time = d3.scale.linear()
-        .domain([0, 50])
+        .domain([0, beats])
         .range([0, width])
         .clamp(true);
 
@@ -82,22 +85,35 @@ var blocks = blockg.selectAll('g.note')
     });
 
 blocks.append('rect')
-    .attr({ width: 15, height: 15 });
+    .attr({ width: 23, height: 22 });
 
 blocks.append('text')
     .attr('dy', 12)
     .attr('dx', 2)
     .text(function(d) {
-        return note_names[(d.note - 19) % 12];
+        return note_names[(d.note) % 12];
     });
 
-blocks.on('click', function(d) {
+function flip() {
+    var xy = d3.event.touches ?
+        d3.event.touches[0] : d3.event;
+    var d = d3.select(document.elementFromPoint(xy.clientX, xy.clientY)).datum();
+    d3.event.preventDefault();
+    if (!d) return;
     board.map(function(b) {
         if (b.time === d.time) b.on = false;
     });
     d.on = !d.on;
     blocks.select('rect').classed('on', function(d) { return d.on; });
-}).on('mouseover', function(d) {
+}
+
+d3.select(document.body)
+.on('mousedown', flip)
+.on('touchstart', flip)
+.on('touchmove', flip);
+
+blocks
+.on('mouseover', function(d) {
     if (!d3.event.which) return;
     var on = !d.on;
     board.map(function(b) {
@@ -113,12 +129,11 @@ var timeline = svg.selectAll('g.timeline')
     .append('g')
     .attr('class', 'timeline')
     .attr('transform', function(d) {
-        return 'translate(' +
-            scale_time(d) + ',0)';
+        return 'translate(' + scale_time(d) + ',0)';
     });
 
 timeline.append('rect')
-    .attr({ width: 15, height: 15 });
+    .attr({ width: 23, height: 15 });
 
 function cuePos() {
     return 'translate(' + scale_time(d3.select(this).data()) + ', 0)';
@@ -147,7 +162,7 @@ var cue = svg.selectAll('g.cue')
           .on('drag', dragCue)
           .on('dragend', saveCue));
 
-cue.append('rect').attr({ width: 15, height: 15 });
+cue.append('rect').attr({ width: 23, height: 15 });
 
 d3.select('#bar')
     .on('change', function() {
@@ -160,11 +175,16 @@ d3.select('#bar')
         .text(String)
         .attr('value', String);
 
-d3.select('#reset').on('click', function() {
+function reset() {
     board = makeBoard();
     blocks.select('rect').classed('on', false);
+    blocks.data(board);
     hashset();
-});
+}
+
+d3.select('#reset')
+    .on('touchstart', reset)
+    .on('click', reset);
 
 setbar(4);
 updateBpm();
@@ -254,7 +274,24 @@ function noteFreq(tone, octave) {
 
 var tonegenerator = sinetone();
 var pos = 0, stepi;
-pico.play(tonegenerator);
+
+function setup() {
+    pico.play(tonegenerator);
+}
+
+if ('ontouchstart' in document.body) {
+    d3.select(document.body)
+        .append('a')
+        .attr('class', 'starter')
+        .attr('href', '#')
+        .text('start')
+        .on('touchstart', function() {
+            setup();
+            d3.select(this).remove();
+        });
+} else {
+    setup();
+}
 function step() {
     var notes = board.filter(function(d) {
         return d.time == pos && d.on;
