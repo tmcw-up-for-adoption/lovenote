@@ -30,19 +30,21 @@ body {
     position:absolute;
     right:0;
     top:0;
+    height:40px;
 }
 
-h1 {
-    font-weight:normal;
-}
-
-h1 small {
-    font-size:12px;
+#music {
+    position:absolute;
+    right:0;
+    top:40px;
 }
 
 g.note rect {
     cursor:pointer;
     fill:#ccc;
+}
+g.note rect.in-key {
+    fill:#bbb;
 }
 g.note.playing rect {
     fill:#aaa;

@@ -2,10 +2,31 @@ var width = 1000,
     height = 600,
     on = false,
     note = 5,
-    // C
+    beats = 40,
     lowest = 24,
     tones = 24,
     highest = lowest + tones;
+
+var note_names = 'C C# D D# E F F# G G# A A# B'.split(' ');
+
+var scales = d3.entries({
+  chromatic: d3.range(0, 12),
+  cmajor: [0, 2, 4, 5, 7, 9, 11]
+});
+
+// pre-compute sinewave
+var sinewave = new Float32Array((function() {
+  for (var i = 0, results = []; i < 1024; i++) {
+    results.push(Math.sin(2 * Math.PI * (i / 1024)));
+  }
+  return results;
+})());
+
+// Turn a tone number into a reasonable frequency in Hz
+function noteFreq(tone, octave) {
+    return 440 * Math.pow(Math.pow(2, 1 / 12),
+        tone + (octave || 3) * 12 - 69);
+}
 
 var svg = d3.select('#music')
     .append('svg')
@@ -15,15 +36,11 @@ d3.select('#on').on('change', function() {
     on = this.checked;
 });
 
-var beats = 40;
-
 function makeBoard() {
     return d3.range(0, beats).reduce(function(mem, time) {
         return mem.concat(d3.range(lowest, highest).map(function(note) {
             return {
-                time: time,
-                note: note,
-                on: false
+                time: time, note: note, on: false
             };
         }));
     }, []);
@@ -64,8 +81,6 @@ var scale_note = d3.scale.linear()
         .range([0, width])
         .clamp(true);
 
-var note_names = 'C C# D D# E F F# G G# A A# B'.split(' ');
-
 var blockg = svg.append('g')
     .attr('transform', 'translate(0, 16)');
 
@@ -85,7 +100,7 @@ var blocks = blockg.selectAll('g.note')
     });
 
 blocks.append('rect')
-    .attr({ width: 23, height: 22 });
+    .attr({ width: 23, height: 22, 'class': 'in-key' });
 
 blocks.append('text')
     .attr('dy', 12)
@@ -98,19 +113,18 @@ function flip() {
     var xy = d3.event.touches ?
         d3.event.touches[0] : d3.event;
     var d = d3.select(document.elementFromPoint(xy.clientX, xy.clientY)).datum();
-    d3.event.preventDefault();
     if (!d) return;
-    board.map(function(b) {
-        if (b.time === d.time) b.on = false;
-    });
-    d.on = !d.on;
+    d3.event.preventDefault();
+    var before = d.on;
+    board.map(function(b) { if (b.time === d.time) b.on = false; });
+    d.on = !before;
     blocks.select('rect').classed('on', function(d) { return d.on; });
 }
 
 d3.select(document.body)
-.on('mousedown', flip)
-.on('touchstart', flip)
-.on('touchmove', flip);
+  .on('mousedown', flip)
+  .on('touchstart', flip)
+  .on('touchmove', flip);
 
 blocks
 .on('mouseover', function(d) {
@@ -132,8 +146,7 @@ var timeline = svg.selectAll('g.timeline')
         return 'translate(' + scale_time(d) + ',0)';
     });
 
-timeline.append('rect')
-    .attr({ width: 23, height: 15 });
+timeline.append('rect').attr({ width: 23, height: 15 });
 
 function cuePos() {
     return 'translate(' + scale_time(d3.select(this).data()) + ', 0)';
@@ -174,6 +187,78 @@ d3.select('#bar')
         .append('option')
         .text(String)
         .attr('value', String);
+
+function setscale(s) {
+    var default_height = 22;
+    var percent_on = s.length / 12;
+    var off_blocks = 12 - s.length;
+
+    // the total height before
+    var total_height = default_height * 12;
+
+    // off-blocks should occupy half as much space
+    var off_height = (off_blocks * default_height) / 2;
+
+    var on_height = total_height - off_height;
+    var on_block_height = on_height / s.length;
+    var off_block_height = off_height / off_blocks;
+
+    function ison(d) {
+        return s.indexOf(d % 12) !== -1;
+    }
+
+    function p_scale_note(d) {
+        var h = height;
+        for (var i = lowest - 1; i <= d; i++) {
+            h -= ison(i) ? on_block_height : off_block_height;
+            h -= 2;
+        }
+        return h;
+    }
+
+    blocks
+        .transition()
+        .duration(1000)
+        .attr('transform', function(d, i) {
+            return 'translate(' +
+                        scale_time(d.time) + ',' +
+                        p_scale_note(d.note) + ')';
+        });
+
+    blocks.select('rect')
+        .classed('in-key', function(d) {
+          return ison(d.note);
+        })
+        .transition()
+        .duration(1000)
+        .attr({
+          height: function(d) {
+              return ison(d.note) ?
+                on_block_height : off_block_height;
+            }
+          });
+}
+
+d3.select('#scale')
+    .on('change', function() {
+        var v = this.value;
+        setscale(d3.select('#scale').selectAll('option')
+            .filter(function(d) {
+                return d.key == v;
+            }).datum().value);
+    })
+    .selectAll('option')
+    .data(scales)
+    .enter()
+        .append('option')
+        .text(function(d) {
+            return d.key;
+        })
+        .attr('value', function(d) {
+            return d.key;
+        });
+
+
 
 function reset() {
     board = makeBoard();
@@ -226,17 +311,20 @@ d3.select('#play-pause').on('click', function() {
     }
 });
 
-visibility().on('hide', pause).on('show', play);
-
 function sinetone(_) {
     var s = {},
+        cell = new Float32Array(pico.cellsize),
         phase = 0,
         freq,
+        fblv = 0.097 * 1024,
+        fb = 0,
         phaseStep;
+
+    var delay = new pico.DelayNode({ time:100, feedback:0.01 });
 
     s.freq = function(_) {
         freq = _;
-        phaseStep = freq / pico.samplerate;
+        phaseStep = (1024 * freq) / pico.samplerate;
         return s;
     };
 
@@ -249,27 +337,15 @@ function sinetone(_) {
             }
         } else {
             for (i = 0; i < L.length; i++) {
-                L[i] = R[i] = Math.sin(6.28318 * phase) * 0.25;
+                R[i] = L[i] = sinewave[(phase + fb * fblv) & 1023] * 1;
+                fb = L[i];
                 phase += phaseStep;
             }
         }
+        delay.process(L, R);
     };
 
     return s.freq(_);
-}
-
-var tones = {
-    c: 0,
-    d: 2,
-    e: 4,
-    f: 5,
-    g: 7,
-    a: 9,
-    b: 11
-};
-
-function noteFreq(tone, octave) {
-    return 440 * Math.pow(Math.pow(2, 1 / 12), tone + (octave || 3) * 12 - 69);
 }
 
 var tonegenerator = sinetone();
@@ -292,6 +368,7 @@ if ('ontouchstart' in document.body) {
 } else {
     setup();
 }
+
 function step() {
     var notes = board.filter(function(d) {
         return d.time == pos && d.on;
@@ -312,3 +389,6 @@ function step() {
     }
 }
 step();
+
+// setscale([0, 2, 4, 5, 7, 9, 11]);
+setscale(d3.range(0, 12));
