@@ -73,6 +73,72 @@ function updateBpm() {
 
 var board = makeBoard();
 
+  Envelope = (function() {
+
+    function Envelope() {
+      this.samplerate = pico.samplerate;
+      this.a = 0;
+      this.d = 64;
+      this.s = 32;
+      this.r = 0;
+      this.samples = 0;
+      this.status = 0;
+      this.x = 1;
+      this.dx = 0;
+    }
+
+    Envelope.prototype.setParams = function(params) {
+      return this.a = params[0], this.d = params[1], this.s = params[2], this.r = params[3], params;
+    };
+
+    Envelope.prototype.bang = function() {
+      this.samples = 0;
+      this.status = 0;
+      this.x = 1;
+      return this.dx = 0;
+    };
+
+    Envelope.prototype.process = function(cell) {
+      var x, _i, _ref;
+      while (this.samples <= 0) {
+        switch (this.status) {
+          case 0:
+            this.status = 1;
+            this.samples = this.a * this.samplerate * 0.005;
+            this.x = 0;
+            this.dx = (1 / this.samples) * cell.length;
+            break;
+          case 1:
+            this.status = 2;
+            this.samples = this.d * this.samplerate * 0.005;
+            this.x = 1;
+            this.dx = -(1 / this.samples) * cell.length;
+            if (this.s > 0) {
+              this.dx *= this.s / 127;
+            }
+            break;
+          case 2:
+            this.status = 3;
+            this.samples = Infinity;
+            this.dx = 0;
+            if (this.s === 0) {
+              this.x = 0;
+            }
+        }
+      }
+      x = this.x;
+      for (i = _i = 0, _ref = cell.length; _i < _ref; i = _i += 1) {
+        cell[i] *= x;
+      }
+      this.x += this.dx;
+      return this.samples -= cell.length;
+    };
+
+    return Envelope;
+
+  })();
+
+
 var scale_note = d3.scale.linear()
         .domain([lowest - 2, highest - 1])
         .range([height, 0]),
@@ -116,9 +182,54 @@ function flip() {
     if (!d) return;
     d3.event.preventDefault();
     var before = d.on;
-    board.map(function(b) { if (b.time === d.time) b.on = false; });
     d.on = !before;
     blocks.select('rect').classed('on', function(d) { return d.on; });
+    hashset(boardhash());
+}
+
+var sn = simplenotes();
+
+function hashset(x) {
+    window.history.replaceState('', 'lovenote', '/#' + x);
+}
+
+function boardhash() {
+    var bytime = d3.nest()
+        .key(function(d) { return d.time; })
+        .map(blocks.data().sort(function(a, b) {
+            return a.time - b.time;
+        }));
+    var s = '';
+    function ison(b) { return b.on; }
+    function encnote(b) {
+        return sn.encodeint(b.note - 24);
+    }
+    for (var i = 0; i < 40; i++) {
+        s += bytime[i].filter(ison).map(encnote).join('');
+        s += '-';
+    }
+    return s;
+}
+
+function hashboard(x) {
+    var board = makeBoard();
+    var n = x.split('-');
+    function decnote(b) {
+        return sn.decodechar(b) + 24;
+    }
+    for (var time = 0; time < n.length; time++) {
+        if (n[time]) {
+            n[time].split('').map(decnote).forEach(function(note) {
+                board = board.map(function(b) {
+                    if (b.note == note && b.time == time) {
+                        b.on = true;
+                    }
+                    return b;
+                });
+            });
+        }
+    }
+    setboard(board);
 }
 
 d3.select(document.body)
@@ -129,11 +240,7 @@ d3.select(document.body)
 blocks
 .on('mouseover', function(d) {
     if (!d3.event.which) return;
-    var on = !d.on;
-    board.map(function(b) {
-        if (b.time === d.time) b.on = false;
-    });
-    d.on = on;
+    d.on = !d.on;
     blocks.select('rect').classed('on', function(d) { return d.on; });
 });
 
@@ -258,13 +365,15 @@ d3.select('#scale')
             return d.key;
         });
 
-
-
 function reset() {
-    board = makeBoard();
-    blocks.select('rect').classed('on', false);
+    setboard(makeBoard());
+}
+
+function setboard(board) {
     blocks.data(board);
-    hashset();
+    blocks.select('rect').classed('on', function(b) {
+        return b.on;
+    });
 }
 
 d3.select('#reset')
@@ -287,7 +396,7 @@ d3.select('#bpm-down').on('click', function() {
 });
 
 function pause() {
-    tonegenerator.freq(-1);
+    tonegenerator.freqs([]);
     if (stepi) window.clearTimeout(stepi);
     stepi = null;
 }
@@ -311,41 +420,56 @@ d3.select('#play-pause').on('click', function() {
     }
 });
 
-function sinetone(_) {
+function sinetone() {
     var s = {},
+        e = new Envelope(),
         cell = new Float32Array(pico.cellsize),
-        phase = 0,
-        freq,
+        phases = [],
+        freqs,
+        amp = 1,
         fblv = 0.097 * 1024,
-        fb = 0,
-        phaseStep;
+        fbs = [],
+        phaseSteps;
 
-    var delay = new pico.DelayNode({ time:100, feedback:0.01 });
+    var delay = new pico.DelayNode({ time:200, feedback:0.15, wet: 0.1 });
 
-    s.freq = function(_) {
-        freq = _;
-        phaseStep = (1024 * freq) / pico.samplerate;
+    s.freqs = function(_) {
+        freqs = _;
+        amp = 1;
+        phaseSteps = freqs.map(function(f) {
+            return (1024 * f) / pico.samplerate;
+        });
+        if (phases.length !== phaseSteps.length) {
+            phases = d3.range(0, _.length).map(function() { return 0; });
+            fbs = d3.range(0, _.length).map(function() { return 0; });
+        }
         return s;
     };
 
     s.process = function(L, R) {
         var i;
-        if (phaseStep < 0) {
-            phase = 0;
+        if (phaseSteps.length < 0) {
+            phases = [];
             for (i = 0; i < L.length; i++) {
                 L[i] = R[i] = 0;
             }
         } else {
-            for (i = 0; i < L.length; i++) {
-                R[i] = L[i] = sinewave[(phase + fb * fblv) & 1023] * 1;
-                fb = L[i];
-                phase += phaseStep;
+            for (i = 0; i < L.length; i++) R[i] = L[i] = 0;
+            var len = phaseSteps.length;
+            for (var f = 0; f < phaseSteps.length; f++) {
+                var phaseStep = phaseSteps[f];
+                for (i = 0; i < L.length; i++) {
+                    R[i] = L[i] = R[i] + ((sinewave[(phases[f] + fbs[f] * fblv) & 1023] * amp) / len);
+                    fbs[f] = L[i];
+                    phases[f] += phaseStep;
+                }
             }
+            amp *= 0.96;
         }
         delay.process(L, R);
     };
 
-    return s.freq(_);
+    return s.freqs([]);
 }
 
 var tonegenerator = sinetone();
@@ -370,7 +494,7 @@ if ('ontouchstart' in document.body) {
 }
 
 function step() {
-    var notes = board.filter(function(d) {
+    var notes = blocks.data().filter(function(d) {
         return d.time == pos && d.on;
     });
     blocks.classed('playing', function(d) {
@@ -378,10 +502,12 @@ function step() {
     });
     if (!notes.length) {
         on = false;
-        tonegenerator.freq(-1);
+        tonegenerator.freqs([]);
     } else {
         on = true;
-        tonegenerator.freq(noteFreq(notes[0].note));
+        tonegenerator.freqs(notes.map(function(n) {
+            return noteFreq(n.note);
+        }));
     }
     if (++pos > loop[1]) pos = loop[0];
     if (playing) {
@@ -392,3 +518,7 @@ step();
 
 // setscale([0, 2, 4, 5, 7, 9, 11]);
 setscale(d3.range(0, 12));
+
+if (window.location.hash) {
+    hashboard(window.location.hash.slice(1));
+}
