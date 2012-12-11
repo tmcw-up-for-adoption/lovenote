@@ -190,7 +190,7 @@ function flip() {
 var sn = simplenotes();
 
 function hashset(x) {
-    window.history.replaceState('', 'lovenote', '/#' + x);
+    window.history.replaceState('', 'lovenote', window.location.pathname + '#' + x);
 }
 
 function boardhash() {
